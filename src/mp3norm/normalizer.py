@@ -18,10 +18,10 @@ def normalize_file(
     two_pass: bool = True,
 ) -> bool:
     """
-    对单个 MP3 文件进行音量标准化
+    对单个音频文件进行音量标准化
 
     Args:
-        input_path: 输入文件路径
+        input_path: 输入文件路径（支持 mp3, m4a, flac, ogg, wav, aac, wma, opus）
         output_path: 输出文件路径
         target_lufs: 目标响度（LUFS），默认 -16.0
         target_tp: 目标真峰值（dB），默认 -1.5
@@ -35,6 +35,7 @@ def normalize_file(
             # 第一遍：分析
             analyze_cmd = [
                 "ffmpeg",
+                "-vn",
                 "-i",
                 input_path,
                 "-af",
@@ -49,14 +50,16 @@ def normalize_file(
             )
 
             # 从 stderr 中提取 JSON 分析结果
+            # ffmpeg loudnorm 输出的 JSON 块前后可能有额外文本，需要精确提取
             json_start = proc.stderr.rfind("{")
-            if json_start == -1:
+            json_end = proc.stderr.rfind("}")
+            if json_start == -1 or json_end == -1 or json_end <= json_start:
                 # 分析失败，使用一遍式处理
                 return _normalize_one_pass(
                     input_path, output_path, target_lufs, target_tp
                 )
 
-            analysis = json.loads(proc.stderr[json_start:])
+            analysis = json.loads(proc.stderr[json_start : json_end + 1])
 
             # 第二遍：应用测量值
             measured_i = analysis.get("input_i", "-16.0")
@@ -68,6 +71,7 @@ def normalize_file(
             apply_cmd = [
                 "ffmpeg",
                 "-y",
+                "-vn",
                 "-i",
                 input_path,
                 "-af",
@@ -88,7 +92,13 @@ def normalize_file(
                 apply_cmd, capture_output=True, text=True, timeout=120, check=False
             )
 
-            return proc.returncode == 0
+            if proc.returncode != 0:
+                print(f"⚠️  ffmpeg 两遍式处理失败：{Path(input_path).name}")
+                if proc.stderr:
+                    print(f"   stderr: {proc.stderr[-200:]}")
+                return False
+
+            return _verify_output(output_path)
 
         else:
             return _normalize_one_pass(input_path, output_path, target_lufs, target_tp)
@@ -96,6 +106,10 @@ def normalize_file(
     except subprocess.TimeoutExpired:
         print(f"⏰ 处理超时：{input_path}")
         return False
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        # JSON 解析失败，fallback 到一遍式处理
+        print(f"⚠️  分析数据解析失败，降级为一遍式处理：{Path(input_path).name} - {e}")
+        return _normalize_one_pass(input_path, output_path, target_lufs, target_tp)
     except Exception as e:
         print(f"❌ 处理失败：{input_path} - {e}")
         return False
@@ -108,6 +122,7 @@ def _normalize_one_pass(
     cmd = [
         "ffmpeg",
         "-y",
+        "-vn",
         "-i",
         input_path,
         "-af",
@@ -120,7 +135,36 @@ def _normalize_one_pass(
     ]
 
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=False)
-    return proc.returncode == 0
+
+    if proc.returncode != 0:
+        print(f"⚠️  ffmpeg 一遍式处理失败：{Path(input_path).name}")
+        if proc.stderr:
+            print(f"   stderr: {proc.stderr[-200:]}")
+        return False
+
+    return _verify_output(output_path)
+
+
+def _verify_output(output_path: str, min_bytes: int = 1024) -> bool:
+    """
+    验证输出文件是否有效
+
+    Args:
+        output_path: 输出文件路径
+        min_bytes: 最小有效文件大小（字节），默认 1KB
+
+    Returns:
+        文件是否有效
+    """
+    path = Path(output_path)
+    if not path.exists():
+        print(f"⚠️  输出文件未生成：{path.name}")
+        return False
+    if path.stat().st_size < min_bytes:
+        print(f"⚠️  输出文件过小（{path.stat().st_size} 字节），可能无效：{path.name}")
+        path.unlink(missing_ok=True)  # 删除无效文件
+        return False
+    return True
 
 
 def batch_normalize(

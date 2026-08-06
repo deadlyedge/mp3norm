@@ -1,11 +1,15 @@
 """
 MP3 Fixer - 文件扫描与问题分析模块
+支持多种音频格式：mp3, m4a, flac, ogg, wav, aac, wma, opus
 """
 
 import json
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+
+# 支持的音频文件扩展名
+SUPPORTED_EXTENSIONS = {".mp3", ".m4a", ".flac", ".ogg", ".wav", ".aac", ".wma", ".opus"}
 
 
 def analyze_mp3(file_path: str) -> dict:
@@ -24,6 +28,7 @@ def analyze_mp3(file_path: str) -> dict:
         "sample_rate": 0,
         "channels": 0,
         "duration": 0.0,
+        "codec": "",
         "issues": [],
     }
 
@@ -65,10 +70,8 @@ def analyze_mp3(file_path: str) -> dict:
             result["sample_rate"] = int(audio_stream.get("sample_rate", 0))
             result["channels"] = int(audio_stream.get("channels", 0))
 
-            # 检查编解码器
-            codec = audio_stream.get("codec_name", "")
-            if codec != "mp3":
-                result["issues"].append("unexpected_codec")
+            # 记录编解码器类型
+            result["codec"] = audio_stream.get("codec_name", "")
 
         # 检测问题
         result["issues"].extend(detect_issues(result))
@@ -139,7 +142,7 @@ def detect_issues(file_info: dict) -> list:
 
 def scan_directory(root_path: str, progress_callback: Callable | None = None) -> dict:
     """
-    递归扫描目录下的所有 MP3 文件
+    递归扫描目录下的所有支持格式音频文件
 
     Args:
         root_path: 根目录路径
@@ -153,12 +156,15 @@ def scan_directory(root_path: str, progress_callback: Callable | None = None) ->
     if not root.exists():
         raise FileNotFoundError(f"目录不存在：{root_path}")
 
-    # 收集所有 MP3 文件
-    mp3_files = list(root.rglob("*.mp3"))
-    total_files = len(mp3_files)
+    # 收集所有支持格式的音频文件
+    audio_files = [
+        f for f in root.rglob("*")
+        if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS
+    ]
+    total_files = len(audio_files)
 
     # 统计文件夹数
-    folders = {f.parent for f in mp3_files}
+    folders = {f.parent for f in audio_files}
     total_folders = len(folders)
 
     # 分析每个文件
@@ -166,10 +172,10 @@ def scan_directory(root_path: str, progress_callback: Callable | None = None) ->
     problem_files = []
 
     if progress_callback:
-        mp3_files = progress_callback(mp3_files, description="🔍 扫描中")
+        audio_files = progress_callback(audio_files, description="🔍 扫描中")
 
-    for mp3_file in mp3_files:
-        file_info = analyze_mp3(str(mp3_file))
+    for audio_file in audio_files:
+        file_info = analyze_mp3(str(audio_file))
         files_info.append(file_info)
 
         if file_info["issues"]:

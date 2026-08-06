@@ -66,17 +66,18 @@ def _print_report_rich(scan_result: dict):
     console.print()
     console.print("[bold cyan]📈 编码信息统计：[/bold cyan]")
     
-    bitrates = {}
+    # 按编解码器统计
+    codecs = {}
     for f in scan_result["files"]:
-        br = f["bitrate"]
-        bitrates[br] = bitrates.get(br, 0) + 1
+        codec = f.get("codec", "unknown")
+        codecs[codec] = codecs.get(codec, 0) + 1
     
     table = Table(show_header=True, header_style="bold cyan")
-    table.add_column("比特率 (kbps)")
+    table.add_column("编解码器")
     table.add_column("文件数")
     
-    for br in sorted(bitrates.keys(), reverse=True):
-        table.add_row(str(br), str(bitrates[br]))
+    for codec, count in sorted(codecs.items(), key=lambda x: -x[1]):
+        table.add_row(codec, str(count))
     
     console.print(table)
 

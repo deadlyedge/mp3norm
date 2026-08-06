@@ -5,6 +5,9 @@ MP3 Fixer - 终端界面交互模块
 from pathlib import Path
 from typing import Any
 
+# 支持的音频文件扩展名（与 scanner.py 保持一致）
+SUPPORTED_EXTENSIONS = {".mp3", ".m4a", ".flac", ".ogg", ".wav", ".aac", ".wma", ".opus"}
+
 try:
     from rich.console import Console
     from rich.panel import Panel
@@ -88,13 +91,16 @@ def prompt_scan_path() -> str | None:
         print(f"❌ 不是目录：{path}")
         return None
 
-    # 检查是否有 MP3 文件
-    mp3_count = len(list(path_obj.rglob("*.mp3")))
-    if mp3_count == 0:
-        print("⚠️  该目录下没有找到 MP3 文件")
+    # 检查是否有音频文件
+    audio_count = sum(
+        1 for f in path_obj.rglob("*")
+        if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS
+    )
+    if audio_count == 0:
+        print("⚠️  该目录下没有找到支持的音频文件")
         return None
 
-    print(f"✅ 找到 {mp3_count} 个 MP3 文件")
+    print(f"✅ 找到 {audio_count} 个音频文件")
     return str(path_obj.absolute())
 
 
@@ -175,6 +181,7 @@ def show_completion_summary(total: int, processed: int, failed: int):
     """
     if RICH_AVAILABLE:
         console = Console()
+        success_rate = f"📈 成功率：{processed / total * 100:.1f}%" if total > 0 else ""
 
         console.print()
         console.print(
@@ -183,9 +190,7 @@ def show_completion_summary(total: int, processed: int, failed: int):
                 f"📊 总文件数：{total}\n"
                 f"✅ 成功处理：{processed}\n"
                 f"❌ 处理失败：{failed}\n"
-                f"📈 成功率：{processed / total * 100:.1f}%"
-                if total > 0
-                else "",
+                f"{success_rate}",
                 border_style="green",
             )
         )
