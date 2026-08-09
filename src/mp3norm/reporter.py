@@ -80,6 +80,17 @@ def _print_report_rich(scan_result: dict):
         table.add_row(codec, str(count))
     
     console.print(table)
+    # 问题类型分布
+    issue_counts = {}
+    for f in scan_result["files"]:
+        for i in f.get("issues", []):
+            issue_counts[i] = issue_counts.get(i, 0) + 1
+
+    if issue_counts:
+        console.print()
+        console.print("[bold magenta]⛔ 问题类型分布：[/bold magenta]")
+        for issue, count in sorted(issue_counts.items(), key=lambda x: -x[1]):
+            console.print(f"   {issue}: {count}")
 
 
 def _print_report_plain(scan_result: dict):
@@ -103,6 +114,18 @@ def _print_report_plain(scan_result: dict):
             print(f"\n... 还有 {scan_result['problem_files_count'] - 20} 个问题文件未显示")
     
     print()
+
+    # 问题类型分布
+    issue_counts = {}
+    for f in scan_result["files"]:
+        for i in f.get("issues", []):
+            issue_counts[i] = issue_counts.get(i, 0) + 1
+
+    if issue_counts:
+        print("⛔ 问题类型分布：")
+        for issue, count in sorted(issue_counts.items(), key=lambda x: -x[1]):
+            print(f"   {issue}: {count}")
+
     print("=" * 60)
 
 

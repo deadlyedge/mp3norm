@@ -54,6 +54,29 @@ STANDARD_SAMPLE_RATES = [
 ]
 
 # ─────────────────────────────────────────────
+# 深度扫描（scanner）检测开关
+# ─────────────────────────────────────────────
+# 深度扫描由 scan_directory(deep=...) 触发；下列分项开关仅在 deep=True 时生效。
+# 这些检测需完整解码音频，较慢，大型媒体库建议按需开启用于"深度扫描"，
+# 平时可用 deep=False 做"快速扫描"。
+ENABLE_LOUDNESS_ANALYSIS = True      # LUFS 响度分析（ebur128，需完整解码，较慢）
+ENABLE_INTEGRITY_CHECK = True        # 文件完整性验证（完整解码，较慢）
+ENABLE_DUPLICATE_DETECTION = True    # 重复文件检测（按文件大小 + 样本哈希）
+DEEP_ANALYSIS_TIMEOUT_SECONDS = 120  # 深度检测单文件超时（秒）
+
+# LUFS 响度检测阈值
+LUFS_TOO_LOW = -30.0         # integrated < 该值 → loudness_too_low（声音太小）
+LUFS_TOO_HIGH = -6.0         # integrated > 该值 → loudness_too_high（可能削波）
+TRUE_PEAK_CLIPPING_DB = 0.0  # true peak > 该值(dBTP) → true_peak_clipping
+
+# 异常短时长检测阈值（秒）
+VERY_SHORT_DURATION = 10.0   # 0 < 时长 < 该值 → very_short（可能损坏/截断）
+SHORT_TRACK_DURATION = 30.0  # 时长 < 该值 → short_track（短曲/铃声，需人工确认）
+
+# 标签完整性要求的关键字段（按小写比较）
+REQUIRED_TAG_FIELDS = ("title", "artist", "album")
+
+# ─────────────────────────────────────────────
 # 音量标准化（normalizer）配置
 # ─────────────────────────────────────────────
 # EBU R128 响度目标值
