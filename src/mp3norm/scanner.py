@@ -5,6 +5,7 @@ MP3 Fixer - 文件扫描与问题分析模块
 
 import hashlib
 import json
+import os
 import re
 import subprocess
 from collections.abc import Callable
@@ -369,6 +370,26 @@ def _count_duplicates(files_info: list) -> int:
     )
 
 
+def _iter_audio_files(root: Path):
+    """递归遍历目录，跳过被忽略的输出/系统目录，产出支持的音频文件。
+
+    Args:
+        root: 根目录 Path 对象
+
+    Yields:
+        匹配 SUPPORTED_EXTENSIONS 且不在被忽略目录内的文件 Path
+    """
+    for dirpath, dirnames, filenames in os.walk(root):
+        # 原地修改 dirnames 以剪枝：不进入被忽略的目录
+        dirnames[:] = [
+            d for d in dirnames if d not in _cfg.SCAN_EXCLUDED_DIRS
+        ]
+        for name in filenames:
+            path = Path(dirpath) / name
+            if path.suffix.lower() in _cfg.SUPPORTED_EXTENSIONS:
+                yield path
+
+
 def scan_directory(
     root_path: str, progress_callback: Callable | None = None, deep: bool = True
 ) -> dict:
@@ -387,11 +408,8 @@ def scan_directory(
     if not root.exists():
         raise FileNotFoundError(f"目录不存在：{root_path}")
 
-    # 收集所有支持格式的音频文件
-    audio_files = [
-        f for f in root.rglob("*")
-        if f.is_file() and f.suffix.lower() in _cfg.SUPPORTED_EXTENSIONS
-    ]
+    # 收集所有支持格式的音频文件（跳过被忽略的输出/系统目录）
+    audio_files = list(_iter_audio_files(root))
     total_files = len(audio_files)
 
     # 统计文件夹数
