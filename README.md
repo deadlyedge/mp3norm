@@ -72,11 +72,18 @@ python main.py
 
 ## ⚙️ 配置选项
 
-可在 `normalizer.py` 中调整以下参数：
+所有可调参数集中在 `config.py` 中，修改后无需改动功能代码：
 
-- `target_lufs`: 目标响度（默认 -16.0 LUFS）
-- `target_tp`: 目标真峰值（默认 -1.5 dB）
-- `two_pass`: 是否使用两遍处理（默认 True，更准确但更慢）
+```python
+# config.py（节选）
+TARGET_LUFS = -16.0      # 目标响度（LUFS）
+TARGET_TP = -1.5         # 目标真峰值（dB）
+TARGET_LRA = 11.0        # 目标响度范围（LU）
+TWO_PASS = True          # 是否使用两遍处理（更准确但更慢）
+OUTPUT_SAMPLE_RATE = 44100
+OUTPUT_BITRATE = "192k"
+SUPPORTED_EXTENSIONS = {".mp3", ".m4a", ".flac", ".ogg", ".wav", ".aac", ".wma", ".opus"}
+```
 
 ## 📋 扫描报告示例
 

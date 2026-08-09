@@ -5,8 +5,7 @@ MP3 Fixer - 终端界面交互模块
 from pathlib import Path
 from typing import Any
 
-# 支持的音频文件扩展名（与 scanner.py 保持一致）
-SUPPORTED_EXTENSIONS = {".mp3", ".m4a", ".flac", ".ogg", ".wav", ".aac", ".wma", ".opus"}
+from . import config as _cfg
 
 try:
     from rich.console import Console
@@ -74,9 +73,9 @@ def prompt_scan_path() -> str | None:
             "[bold green]📂 请输入要扫描的音乐文件夹路径：[/bold green] "
         )
     else:
-        path = input("📂 请输入要扫描的音乐文件夹路径：")
+        path = input(f"📂 请输入要扫描的音乐文件夹路径({_cfg.DEFAULT_INPUT_DIR})：")
 
-    path = path.strip()
+    path = path.strip() or _cfg.DEFAULT_INPUT_DIR
 
     if not path:
         return None
@@ -93,8 +92,9 @@ def prompt_scan_path() -> str | None:
 
     # 检查是否有音频文件
     audio_count = sum(
-        1 for f in path_obj.rglob("*")
-        if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS
+        1
+        for f in path_obj.rglob("*")
+        if f.is_file() and f.suffix.lower() in _cfg.SUPPORTED_EXTENSIONS
     )
     if audio_count == 0:
         print("⚠️  该目录下没有找到支持的音频文件")

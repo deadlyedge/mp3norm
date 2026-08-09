@@ -3,12 +3,22 @@ MP3 Fixer - 批量扫描与音量标准化 CLI 应用
 主程序入口
 """
 
+import sys
 from pathlib import Path
 
-from normalizer import batch_normalize
-from reporter import print_scan_report
-from scanner import scan_directory
-from tui import (
+# 同时支持两种运行方式：
+#   1) 作为包/模块运行  : python -m mp3norm.main  或 console script（mp3norm）
+#   2) 脚本直接运行      : python src/mp3norm/main.py
+# 当以脚本直接运行时没有父级包，相对导入会失败，此时将包根目录 src/ 加入
+# 模块搜索路径，随后统一使用绝对导入（mp3norm.*），同包代码只加载一份。
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from mp3norm import config as _cfg
+from mp3norm.normalizer import batch_normalize
+from mp3norm.reporter import print_scan_report
+from mp3norm.scanner import scan_directory
+from mp3norm.tui import (
     prompt_scan_path,
     prompt_yes_no,
     show_completion_summary,
@@ -43,7 +53,7 @@ def main():
         return
 
     # 6. 获取输出目录
-    output_dir = Path(root_path) / "_normalized"
+    output_dir = Path(root_path) / _cfg.NORMALIZED_DIR_NAME
     output_dir.mkdir(exist_ok=True)
     print(f"\n📂 输出目录：{output_dir}")
 

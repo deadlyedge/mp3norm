@@ -8,8 +8,7 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
-# 支持的音频文件扩展名
-SUPPORTED_EXTENSIONS = {".mp3", ".m4a", ".flac", ".ogg", ".wav", ".aac", ".wma", ".opus"}
+from . import config as _cfg
 
 
 def analyze_mp3(file_path: str) -> dict:
@@ -35,7 +34,7 @@ def analyze_mp3(file_path: str) -> dict:
     try:
         # 使用 ffprobe 获取音频流信息
         cmd = [
-            "ffprobe",
+            _cfg.FFPROBE_BIN,
             "-v",
             "quiet",
             "-print_format",
@@ -46,7 +45,13 @@ def analyze_mp3(file_path: str) -> dict:
         ]
 
         proc = subprocess.run(
-            cmd, capture_output=True, text=True, check=False, timeout=30
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=_cfg.FFPROBE_TIMEOUT_SECONDS,
         )
 
         if proc.returncode != 0:
@@ -80,8 +85,8 @@ def analyze_mp3(file_path: str) -> dict:
         result["issues"].append("timeout")
     except json.JSONDecodeError:
         result["issues"].append("parse_error")
-    except (OSError, ValueError) as e:
-        result["issues"].append("unknown_error", e)
+    except (OSError, ValueError):
+        result["issues"].append("unknown_error")
 
     return result
 
@@ -115,26 +120,14 @@ def detect_issues(file_info: dict) -> list:
         issues.append("zero_channels")
 
     # 低比特率（< 64 kbps）
-    if 0 < file_info["bitrate"] < 64:
+    if 0 < file_info["bitrate"] < _cfg.LOW_BITRATE_THRESHOLD:
         issues.append("low_bitrate")
 
     # 非标准采样率
-    standard_rates = [
-        8000,
-        11025,
-        12000,
-        16000,
-        22050,
-        24000,
-        32000,
-        44100,
-        48000,
-        88200,
-        96000,
-        176400,
-        192000,
-    ]
-    if file_info["sample_rate"] > 0 and file_info["sample_rate"] not in standard_rates:
+    if (
+        file_info["sample_rate"] > 0
+        and file_info["sample_rate"] not in _cfg.STANDARD_SAMPLE_RATES
+    ):
         issues.append("non_standard_sample_rate")
 
     return issues
@@ -159,7 +152,7 @@ def scan_directory(root_path: str, progress_callback: Callable | None = None) ->
     # 收集所有支持格式的音频文件
     audio_files = [
         f for f in root.rglob("*")
-        if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS
+        if f.is_file() and f.suffix.lower() in _cfg.SUPPORTED_EXTENSIONS
     ]
     total_files = len(audio_files)
 
